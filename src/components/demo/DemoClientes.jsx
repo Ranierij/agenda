@@ -7,9 +7,9 @@ import { Search, Plus, Star, Clock, DollarSign, Calendar } from "lucide-react";
 
 const clientes = [
   {
-    nome: "Maria Silva",
+    nome: "Maria Silva jose",
     email: "maria@email.com",
-    telefone: "(11) 99999-0001",
+    telefone: "(11) 99999-3001",
     totalGasto: 2840,
     visitas: 18,
     ultimaVisita: "28/03/2026",
