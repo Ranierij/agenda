@@ -1,0 +1,47 @@
+{
+  "name": "Pacote",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "nome": {
+      "type": "string",
+      "description": "Nome do pacote"
+    },
+    "descricao": {
+      "type": "string"
+    },
+    "servicos_incluidos": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs dos servi\u00e7os inclu\u00eddos"
+    },
+    "total_sessoes": {
+      "type": "number",
+      "description": "Total de sess\u00f5es inclu\u00eddas"
+    },
+    "valor": {
+      "type": "number",
+      "description": "Valor do pacote em R$"
+    },
+    "validade_dias": {
+      "type": "number",
+      "description": "Validade em dias a partir da contrata\u00e7\u00e3o",
+      "default": 90
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "company_id",
+    "nome",
+    "total_sessoes",
+    "valor"
+  ]
+}

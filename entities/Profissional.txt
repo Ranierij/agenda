@@ -1,0 +1,58 @@
+{
+  "name": "Profissional",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "nome": {
+      "type": "string",
+      "description": "Nome do profissional"
+    },
+    "especialidade": {
+      "type": "string",
+      "description": "Ex: Colorista, Manicure, Esteticista"
+    },
+    "telefone": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "dias_atendimento": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "seg",
+          "ter",
+          "qua",
+          "qui",
+          "sex",
+          "sab",
+          "dom"
+        ]
+      },
+      "description": "Dias da semana em que atende"
+    },
+    "hora_inicio": {
+      "type": "string",
+      "description": "Hor\u00e1rio de in\u00edcio (HH:MM)",
+      "default": "09:00"
+    },
+    "hora_fim": {
+      "type": "string",
+      "description": "Hor\u00e1rio de fim (HH:MM)",
+      "default": "22:00"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "company_id",
+    "nome"
+  ]
+}

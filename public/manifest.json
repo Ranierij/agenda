@@ -1,0 +1,9 @@
+{
+  "name": "BeautyFlow AI",
+  "short_name": "BeautyFlow",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#f43f5e",
+  "icons": []
+}

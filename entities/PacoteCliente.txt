@@ -1,0 +1,63 @@
+{
+  "name": "PacoteCliente",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "pacote_id": {
+      "type": "string",
+      "description": "ID do pacote base"
+    },
+    "pacote_nome": {
+      "type": "string",
+      "description": "Nome do pacote (desnormalizado)"
+    },
+    "cliente_id": {
+      "type": "string",
+      "description": "ID do cliente"
+    },
+    "cliente_nome": {
+      "type": "string",
+      "description": "Nome do cliente (desnormalizado)"
+    },
+    "total_sessoes": {
+      "type": "number"
+    },
+    "sessoes_usadas": {
+      "type": "number",
+      "default": 0
+    },
+    "valor_pago": {
+      "type": "number"
+    },
+    "data_inicio": {
+      "type": "string",
+      "format": "date"
+    },
+    "data_validade": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ativo",
+        "concluido",
+        "vencido",
+        "cancelado"
+      ],
+      "default": "ativo"
+    },
+    "observacoes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id",
+    "pacote_id",
+    "cliente_id",
+    "total_sessoes"
+  ]
+}

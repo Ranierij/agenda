@@ -1,0 +1,44 @@
+{
+  "name": "Notificacao",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "ID da empresa"
+    },
+    "tipo": {
+      "type": "string",
+      "enum": [
+        "falta",
+        "cancelamento",
+        "info"
+      ],
+      "default": "info",
+      "description": "Tipo da notifica\u00e7\u00e3o"
+    },
+    "titulo": {
+      "type": "string",
+      "description": "T\u00edtulo da notifica\u00e7\u00e3o"
+    },
+    "mensagem": {
+      "type": "string",
+      "description": "Corpo da notifica\u00e7\u00e3o"
+    },
+    "agendamento_id": {
+      "type": "string",
+      "description": "ID do agendamento relacionado"
+    },
+    "cliente_nome": {
+      "type": "string"
+    },
+    "lida": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "company_id",
+    "titulo",
+    "mensagem"
+  ]
+}

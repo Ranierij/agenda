@@ -1,0 +1,49 @@
+{
+  "name": "Servico",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "ID da empresa dona do servi\u00e7o"
+    },
+    "nome": {
+      "type": "string",
+      "description": "Nome do servi\u00e7o"
+    },
+    "categoria": {
+      "type": "string",
+      "enum": [
+        "Cabelo",
+        "Unhas",
+        "Est\u00e9tica",
+        "Maquiagem",
+        "Massagem",
+        "Sobrancelha",
+        "Outro"
+      ],
+      "description": "Categoria do servi\u00e7o"
+    },
+    "duracao_minutos": {
+      "type": "number",
+      "description": "Dura\u00e7\u00e3o em minutos",
+      "default": 60
+    },
+    "valor": {
+      "type": "number",
+      "description": "Valor em R$"
+    },
+    "descricao": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o curta do servi\u00e7o"
+    },
+    "ativo": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "company_id",
+    "nome",
+    "valor"
+  ]
+}
