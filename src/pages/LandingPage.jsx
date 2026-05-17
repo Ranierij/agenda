@@ -143,11 +143,11 @@ const testimonials = [
 const plans = [
   {
     name: "Starter",
-    price: "R$ 197",
+    price: "R$ 19,99",
     period: "/mês",
     desc: "Para salões que querem sair do improviso e ter controle real.",
     features: [
-      "Até 2 profissionais",
+      "Até 4 profissionais",
       "Agenda completa",
       "CRM de clientes",
       "Link de agendamento público",
@@ -157,11 +157,11 @@ const plans = [
   },
   {
     name: "Pro",
-    price: "R$ 397",
+    price: "R$ 25",
     period: "/mês",
     desc: "Para salões que querem crescer com inteligência e dados.",
     features: [
-      "Até 8 profissionais",
+      "Até 10 profissionais",
       "Tudo do Starter",
       "AI Growth Engine",
       "Pacotes e sessões",
@@ -270,8 +270,8 @@ export default function LandingPage() {
               </span>
             </h1>
             <p className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto leading-relaxed">
-              BeautyFlow AI é o sistema de gestão completo para salões de
-              beleza, estúdios e espaços estéticos que querem operar com
+              BeautyFlow é o sistema de gestão completo para salões de beleza,
+              estúdios e espaços estéticos que querem operar com
               profissionalismo, crescer com dados e recuperar receita com
               inteligência artificial.
             </p>
@@ -286,13 +286,12 @@ export default function LandingPage() {
                   <ChevronRight className="w-4 h-4" />
                 </Button>
               </Link>
-              <a href="https://turbosaas.pro/" target="_blank" rel="noreferrer">
+              <a target="_blank" rel="noreferrer">
                 <Button
                   size="lg"
                   variant="outline"
                   className="px-10 py-6 text-lg rounded-xl border-2 gap-2"
                 >
-                  Conhecer o TurboSaaS
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               </a>
@@ -475,31 +474,16 @@ export default function LandingPage() {
                 <div className="w-9 h-9 bg-gradient-to-br from-rose-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg shadow-rose-500/30">
                   <Rocket className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-rose-400 font-bold text-sm uppercase tracking-wider">
-                  Ecossistema TurboSaaS
-                </span>
+                <span className="text-rose-400 font-bold text-sm uppercase tracking-wider"></span>
               </div>
               <h2 className="text-3xl sm:text-4xl font-bold mb-5 leading-tight">
                 Esse sistema não é só um software.
                 <br />
                 <span className="text-rose-400">
-                  É um ativo SaaS pronto para você vender.
+                  É um ativo SaaS pronto para você.
                 </span>
               </h2>
-              <p className="text-slate-300 text-lg leading-relaxed mb-6">
-                O <strong className="text-white">TurboSaaS</strong> é um
-                ecossistema de sistemas SaaS prontos por nicho. Cada sistema —
-                incluindo esse BeautyFlow AI — é entregue completo dentro do{" "}
-                <strong className="text-white">Supabase</strong>, pronto para ser
-                clonado, personalizado e comercializado para clientes finais do
-                mercado.
-              </p>
-              <p className="text-slate-400 leading-relaxed mb-8">
-                Você não precisa saber programar. Você não precisa construir do
-                zero. Você recebe o sistema pronto, coloca a marca do seu
-                cliente, define a cor e o nome — e já sai vendendo como SaaS
-                recorrente.
-              </p>
+
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link to="/demo">
                   <Button className="bg-rose-500 hover:bg-rose-600 text-white gap-2 px-6 h-11 rounded-xl">
@@ -510,7 +494,7 @@ export default function LandingPage() {
                   variant="outline"
                   className="border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white gap-2 px-6 h-11 rounded-xl"
                 >
-                  <Rocket className="w-4 h-4" /> Conhecer o TurboSaaS
+                  <Rocket className="w-4 h-4" />
                 </Button>
               </div>
             </div>
@@ -576,13 +560,8 @@ export default function LandingPage() {
                 ))}
               </div>
               <div className="mt-4 bg-white/5 rounded-2xl border border-white/10 p-4 text-center">
-                <p className="text-slate-400 text-xs mb-1">
-                  Sistemas na biblioteca TurboSaaS
-                </p>
-                <p className="text-white text-sm font-medium">
-                  BeautyFlow · ClinicFlow · PetFlow · GymFlow · OdontoPro ·
-                  LegalFlow · e mais
-                </p>
+                <p className="text-slate-400 text-xs mb-1"></p>
+                <p className="text-white text-sm font-medium"></p>
               </div>
             </div>
           </div>
@@ -1123,19 +1102,12 @@ export default function LandingPage() {
                   TurboSaaS
                 </span>
               </div>
-              <Badge className="mb-5 bg-white/10 text-white/80 border-white/20 text-sm">
-                Desenvolvido dentro do ecossistema TurboSaaS
-              </Badge>
+              <Badge className="mb-5 bg-white/10 text-white/80 border-white/20 text-sm"></Badge>
               <h2 className="text-3xl sm:text-4xl font-bold text-white mb-5 leading-tight">
-                BeautyFlow AI faz parte de uma linha de SaaS por nicho — criada
+                BeautyFlow faz parte de uma linha de SaaS por nicho — criada
                 para operar no mundo real
               </h2>
-              <p className="text-slate-300 text-lg leading-relaxed max-w-2xl mx-auto mb-8">
-                O TurboSaaS é um ecossistema de sistemas SaaS por nicho,
-                desenvolvidos com foco em operação real, demonstração comercial
-                e escala. Cada produto foi pensado para ser vendável, usável e
-                lucrativo — não apenas apresentável.
-              </p>
+              <p className="text-slate-300 text-lg leading-relaxed max-w-2xl mx-auto mb-8"></p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
                 {[
                   {
@@ -1150,8 +1122,6 @@ export default function LandingPage() {
                   },
                   {
                     icon: Rocket,
-                    title: "Pronto para clone",
-                    desc: "Sistemas prontos para personalizar, clonar e comercializar",
                   },
                 ].map((item, i) => (
                   <div
@@ -1170,10 +1140,7 @@ export default function LandingPage() {
               </div>
               <p className="text-sm text-slate-400">
                 Outros sistemas da biblioteca:{" "}
-                <span className="text-slate-300 font-medium">
-                  ClinicFlow, PetFlow, GymFlow, OdontoPro, LegalFlow
-                </span>{" "}
-                e mais.
+                <span className="text-slate-300 font-medium"></span>{" "}
               </p>
             </div>
           </div>
@@ -1296,12 +1263,8 @@ export default function LandingPage() {
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
               <div>
-                <span className="font-bold text-white text-lg">
-                  BeautyFlow AI
-                </span>
-                <p className="text-xs text-slate-500">
-                  Parte do ecossistema TurboSaaS
-                </p>
+                <span className="font-bold text-white text-lg">BeautyFlow</span>
+                <p className="text-xs text-slate-500"></p>
               </div>
             </div>
             <div className="flex flex-wrap justify-center gap-6 text-sm">
@@ -1327,8 +1290,7 @@ export default function LandingPage() {
           </div>
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm">
             <p>
-              © 2026 BeautyFlow AI — Ecossistema TurboSaaS. Todos os direitos
-              reservados.
+              © 2026 BeautyFlow — Ecossistema. Todos os direitos reservados.
             </p>
             <div className="flex gap-6">
               <a href="#" className="hover:text-white transition-colors">

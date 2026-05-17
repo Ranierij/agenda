@@ -91,19 +91,18 @@ export default function DemoPage() {
             <Sparkles className="w-3 h-3 text-white" />
           </div>
           <span className="font-bold text-slate-900 text-sm">
-            BeautyFlow AI
+            BeautyFlow
             <Badge className="ml-1.5 bg-rose-100 text-rose-600 border-0 text-xs">
               DEMO
             </Badge>
           </span>
         </div>
-        <a href="https://turbosaas.pro/" target="_blank" rel="noreferrer">
+        <a target="_blank" rel="noreferrer">
           <Button
             size="sm"
             className="bg-rose-500 hover:bg-rose-600 text-white text-xs gap-1.5"
           >
             <ExternalLink className="w-3 h-3" />
-            turbosaas.pro
           </Button>
         </a>
       </div>
