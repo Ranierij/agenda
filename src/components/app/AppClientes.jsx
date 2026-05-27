@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Search, User } from "lucide-react";
+import { Plus, Search, Trash2, User } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import ClientePerfilPanel from "./ClientePerfilPanel";
 
@@ -105,6 +105,35 @@ export default function AppClientes() {
       toast({
         title: "Erro ao salvar cliente",
         description: error.message || "Verifique os dados e tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteCliente = async () => {
+    if (!editing) return;
+    const confirmed = window.confirm(
+      `Excluir o cliente "${editing.nome}"? Esta ação não pode ser desfeita.`,
+    );
+    if (!confirmed) return;
+
+    setSaving(true);
+    try {
+      await supabaseApi.entities.Cliente.delete(editing.id);
+      toast({ title: "Cliente excluído!" });
+      if (selected?.id === editing.id) {
+        setSelected(null);
+      }
+      setShowForm(false);
+      load();
+    } catch (error) {
+      toast({
+        title: "Erro ao excluir cliente",
+        description:
+          error.message ||
+          "Verifique se o cliente possui agendamentos vinculados.",
         variant: "destructive",
       });
     } finally {
@@ -280,6 +309,18 @@ export default function AppClientes() {
                 }
               />
             </div>
+            {editing && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={deleteCliente}
+                disabled={saving}
+                className="w-full gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              >
+                <Trash2 className="w-4 h-4" />
+                Excluir cliente
+              </Button>
+            )}
             <div className="flex gap-3 pt-2">
               <Button
                 variant="outline"

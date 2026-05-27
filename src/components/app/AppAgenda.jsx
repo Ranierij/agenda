@@ -320,6 +320,7 @@ export default function AppAgenda() {
     };
     const repetirDias = parseInt(form.repetir_dias) || 0;
 
+    try {
     if (editing) {
       const dataFinal = form.data_reagendamento || selectedDate;
       await supabaseApi.entities.Agendamento.update(editing.id, {
@@ -379,9 +380,18 @@ export default function AppAgenda() {
       await sendConfirmationEmail({ ...basePayload, data: selectedDate });
     }
 
-    setSaving(false);
     setShowForm(false);
     loadAgendamentos();
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Erro ao salvar agendamento",
+        description: error.message || "Verifique os dados e tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const sendConfirmacaoStatus = async (ag) => {

@@ -18,6 +18,7 @@ import {
   Clock,
   DollarSign,
   Pencil,
+  Trash2,
   ToggleLeft,
   ToggleRight,
 } from "lucide-react";
@@ -104,6 +105,7 @@ export default function AppServicos() {
       valor: parseFloat(form.valor),
       duracao_minutos: parseInt(form.duracao_minutos),
     };
+    try {
     if (editing) {
       await supabaseApi.entities.Servico.update(editing.id, payload);
       toast({ title: "Serviço atualizado!" });
@@ -111,9 +113,43 @@ export default function AppServicos() {
       await supabaseApi.entities.Servico.create(payload);
       toast({ title: "Serviço criado!" });
     }
-    setSaving(false);
     setShowForm(false);
     load();
+    } catch (error) {
+      toast({
+        title: "Erro ao salvar serviço",
+        description: error.message || "Verifique os dados e tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteServico = async () => {
+    if (!editing) return;
+    const confirmed = window.confirm(
+      `Excluir o serviço "${editing.nome}"? Esta ação não pode ser desfeita.`,
+    );
+    if (!confirmed) return;
+
+    setSaving(true);
+    try {
+      await supabaseApi.entities.Servico.delete(editing.id);
+      toast({ title: "Serviço excluído!" });
+      setShowForm(false);
+      load();
+    } catch (error) {
+      toast({
+        title: "Erro ao excluir serviço",
+        description:
+          error.message ||
+          "Verifique se o serviço possui agendamentos vinculados.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleAtivo = async (s) => {
@@ -302,6 +338,18 @@ export default function AppServicos() {
                 }
               />
             </div>
+            {editing && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={deleteServico}
+                disabled={saving}
+                className="w-full gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              >
+                <Trash2 className="w-4 h-4" />
+                Excluir serviço
+              </Button>
+            )}
             <div className="flex gap-3 pt-2">
               <Button
                 variant="outline"
