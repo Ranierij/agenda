@@ -64,7 +64,7 @@ export default function Login() {
       if (loginError) throw loginError;
 
       await checkAppState();
-      navigate("/app", { replace: true });
+      navigate("/app/dashboard", { replace: true });
     } catch (err) {
       setError(err.message || "Não foi possível acessar o sistema.");
     } finally {

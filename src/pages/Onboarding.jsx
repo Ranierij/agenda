@@ -3,6 +3,7 @@ import { supabaseApi } from "@/api/supabaseApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
+import { clearCompanyCache } from "@/hooks/useCompany";
 import {
   Sparkles,
   Building,
@@ -13,6 +14,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/lib/AuthContext";
 
 const STEPS = ["salao", "servicos", "profissionais", "pronto"];
 
@@ -45,6 +47,7 @@ const SERVICOS_SUGERIDOS = [
 export default function Onboarding() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { checkAppState } = useAuth();
   const [step, setStep] = useState("salao");
   const [user, setUser] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -60,13 +63,30 @@ export default function Onboarding() {
   const [profissionais, setProfissionais] = useState([]);
 
   useEffect(() => {
-    supabaseApi.auth.me().then((u) => {
-      setUser(u);
-      // Se já tem onboarding completo, redirecionar
-      if (u.nome_salao && u.slug) navigate("/dashboard");
-    });
-  }, []);
+    let cancelled = false;
 
+    const load = async () => {
+      const u = await supabaseApi.auth.me();
+      if (cancelled) return;
+
+      setUser(u);
+
+      const [salao] = await supabaseApi.entities.Salao.filter(
+        { owner_email: u.email },
+        "-created_date",
+        1,
+      ).catch(() => []);
+
+      if (!cancelled && salao?.onboarding_concluido) {
+        navigate("/app/dashboard", { replace: true });
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
   const toggleServico = (s) => {
     setServicosSelecionados((sel) =>
       sel.find((x) => x.nome === s.nome)
@@ -93,6 +113,8 @@ export default function Onboarding() {
       .replace(/^-|-$/g, "");
     setSaving(true);
     const updatedUser = await supabaseApi.auth.updateMe({ ...salaoForm, slug: slugNorm });
+    clearCompanyCache();
+    await checkAppState();
     setUser(updatedUser);
     setSalaoForm((s) => ({ ...s, slug: slugNorm }));
     setSaving(false);
@@ -129,7 +151,9 @@ export default function Onboarding() {
       ).catch(() => {});
     }
     setSaving(false);
-    setStep("pronto");
+    clearCompanyCache();
+    await checkAppState();
+    window.location.replace("/app/dashboard");
   };
 
   const progressStep = STEPS.indexOf(step);
@@ -426,7 +450,10 @@ export default function Onboarding() {
                 </div>
               )}
               <Button
-                onClick={() => navigate("/dashboard")}
+                onClick={() => {
+                  clearCompanyCache();
+                  navigate("/app/dashboard", { replace: true });
+                }}
                 className="w-full bg-rose-500 hover:bg-rose-600 text-white h-11"
               >
                 Ir para o Dashboard <ChevronRight className="w-4 h-4 ml-1" />

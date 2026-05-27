@@ -66,7 +66,7 @@ export default function DemoPage() {
 
           {/* CTA TurboSaaS */}
           <a
-            href="https://turbosaas.pro/"
+            href=""
             target="_blank"
             rel="noreferrer"
             className="flex-shrink-0 flex items-center gap-1.5 bg-rose-500 hover:bg-rose-600 transition-colors text-white text-xs font-semibold px-3.5 py-1.5 rounded-lg shadow-lg shadow-rose-500/20"
