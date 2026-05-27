@@ -22,7 +22,7 @@ const STATUS_STYLE = {
 const HOUR_HEIGHT_BASE = 60; // px por hora (base)
 const GRID_START_H = 7;
 const HOURS_COUNT = 15; // 07:00 → 21:00
-const PX_PER_MIN = HOUR_HEIGHT_BASE / 60; // pixels por minuto (fixo)
+const MIN_SLOT_HEIGHT = 58;
 
 function timeToMinutes(t) {
   const [h, m] = (t || "00:00").split(":").map(Number);
@@ -237,9 +237,17 @@ export default function AgendaColunas({
 
   // Slots de acordo com intervalo
   const hourSlots = useMemo(() => buildHourSlots(intervalMin), [intervalMin]);
-  // slotHeight = altura visual de cada slot (px)
-  const slotHeight = useMemo(() => PX_PER_MIN * intervalMin, [intervalMin]);
-  const totalGrid = HOURS_COUNT * HOUR_HEIGHT_BASE; // grade sempre com altura total fixa em px
+  // Escala visual por intervalo: slots menores ganham altura suficiente
+  // para mostrar hora, cliente e serviço dentro do bloco.
+  const slotHeight = useMemo(
+    () => Math.max(MIN_SLOT_HEIGHT, (HOUR_HEIGHT_BASE / 60) * intervalMin),
+    [intervalMin],
+  );
+  const pxPerMin = useMemo(
+    () => slotHeight / intervalMin,
+    [slotHeight, intervalMin],
+  );
+  const totalGrid = HOURS_COUNT * 60 * pxPerMin;
   const GRID_START_MIN = GRID_START_H * 60;
 
   const handleSlotClick = (colId, absMin) => {
@@ -587,8 +595,8 @@ export default function AgendaColunas({
                   {col.ags.map((ag) => {
                     const startMin = timeToMinutes(ag.hora);
                     const dur = ag.duracao_minutos || 60;
-                    const top = (startMin - GRID_START_MIN) * PX_PER_MIN;
-                    const height = Math.max(dur * PX_PER_MIN, slotHeight);
+                    const top = (startMin - GRID_START_MIN) * pxPerMin;
+                    const height = Math.max(dur * pxPerMin, MIN_SLOT_HEIGHT);
                     const style =
                       STATUS_STYLE[ag.status] || STATUS_STYLE.agendado;
 
@@ -611,7 +619,7 @@ export default function AgendaColunas({
                         <div className="px-2 py-1 h-full flex flex-col overflow-hidden gap-0.5">
                           {/* Linha hora */}
                           <p
-                            className="text-[11px] font-semibold leading-tight truncate"
+                            className="text-[10px] sm:text-[11px] font-semibold leading-tight truncate"
                             style={{ color: style.text }}
                           >
                             {ag.hora}
@@ -619,20 +627,20 @@ export default function AgendaColunas({
                           </p>
                           {/* Nome cliente — sempre visível se height >= 28 */}
                           <p
-                            className="text-[11px] font-bold leading-tight truncate"
+                            className="text-[11px] sm:text-xs font-bold leading-tight truncate"
                             style={{ color: style.text }}
+                            title={ag.cliente_nome}
                           >
                             {ag.cliente_nome}
                           </p>
                           {/* Serviço — aparece se tem espaço */}
-                          {height >= 52 && (
-                            <p
-                              className="text-[11px] leading-tight truncate"
-                              style={{ color: style.border }}
-                            >
-                              {ag.servico_nome}
-                            </p>
-                          )}
+                          <p
+                            className="text-[10px] sm:text-[11px] leading-tight truncate"
+                            style={{ color: style.border }}
+                            title={ag.servico_nome}
+                          >
+                            {ag.servico_nome}
+                          </p>
                           {height >= 68 &&
                             viewMode === "week" &&
                             ag.profissional_nome && (
