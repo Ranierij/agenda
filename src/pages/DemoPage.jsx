@@ -72,7 +72,6 @@ export default function DemoPage() {
             className="flex-shrink-0 flex items-center gap-1.5 bg-rose-500 hover:bg-rose-600 transition-colors text-white text-xs font-semibold px-3.5 py-1.5 rounded-lg shadow-lg shadow-rose-500/20"
           >
             Quero esse sistema
-            <ExternalLink className="w-3 h-3" />
           </a>
         </div>
       </div>
