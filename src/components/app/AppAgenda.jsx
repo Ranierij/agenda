@@ -164,6 +164,35 @@ export default function AppAgenda() {
     return h * 60 + m;
   };
 
+  const buildRepeticoes = (
+    payload,
+    dataInicial,
+    repetirDias,
+    status = "agendado",
+  ) => {
+    if (!repetirDias) return [];
+
+    const repeticoes = [];
+    const dataBase = new Date(dataInicial + "T12:00:00");
+    const limite = new Date(dataBase);
+    limite.setMonth(limite.getMonth() + 3);
+
+    let nextDate = new Date(dataBase);
+    nextDate.setDate(nextDate.getDate() + repetirDias);
+
+    while (nextDate <= limite) {
+      repeticoes.push({
+        ...payload,
+        data: nextDate.toISOString().split("T")[0],
+        status,
+      });
+      nextDate = new Date(nextDate);
+      nextDate.setDate(nextDate.getDate() + repetirDias);
+    }
+
+    return repeticoes;
+  };
+
   const openCreate = () => {
     setEditing(null);
     setForm(EMPTY_FORM);
@@ -289,6 +318,7 @@ export default function AppAgenda() {
       observacoes: form.observacoes,
       repetir_dias: parseInt(form.repetir_dias) || 0,
     };
+    const repetirDias = parseInt(form.repetir_dias) || 0;
 
     if (editing) {
       const dataFinal = form.data_reagendamento || selectedDate;
@@ -297,14 +327,30 @@ export default function AppAgenda() {
         status: editing.status,
         data: dataFinal,
       });
+      if (repetirDias > 0) {
+        const repeticoes = buildRepeticoes(
+          basePayload,
+          dataFinal,
+          repetirDias,
+          "agendado",
+        );
+        if (repeticoes.length > 0) {
+          await supabaseApi.entities.Agendamento.bulkCreate(repeticoes);
+          toast({
+            title: `Agendamento atualizado com ${repeticoes.length} repetição(ões)!`,
+          });
+        } else {
+          toast({ title: "Agendamento atualizado!" });
+        }
+      } else {
+        toast({ title: "Agendamento atualizado!" });
+      }
       if (dataFinal !== editing.data) {
         setSelectedDate(dataFinal);
       }
-      toast({ title: "Agendamento atualizado!" });
     } else {
-      const repetirDias = parseInt(form.repetir_dias) || 0;
       // Cria o agendamento principal
-      const criado = await supabaseApi.entities.Agendamento.create({
+      await supabaseApi.entities.Agendamento.create({
         ...basePayload,
         data: selectedDate,
         status: "agendado",
@@ -312,21 +358,11 @@ export default function AppAgenda() {
 
       // Cria repetições (até 3 meses à frente)
       if (repetirDias > 0) {
-        const repeticoes = [];
-        let dataBase = new Date(selectedDate + "T12:00:00");
-        const limite = new Date(dataBase);
-        limite.setMonth(limite.getMonth() + 3);
-        let nextDate = new Date(dataBase);
-        nextDate.setDate(nextDate.getDate() + repetirDias);
-        while (nextDate <= limite) {
-          repeticoes.push({
-            ...basePayload,
-            data: nextDate.toISOString().split("T")[0],
-            status: "agendado",
-          });
-          nextDate = new Date(nextDate);
-          nextDate.setDate(nextDate.getDate() + repetirDias);
-        }
+        const repeticoes = buildRepeticoes(
+          basePayload,
+          selectedDate,
+          repetirDias,
+        );
         if (repeticoes.length > 0) {
           await supabaseApi.entities.Agendamento.bulkCreate(repeticoes);
           toast({
@@ -900,6 +936,35 @@ export default function AppAgenda() {
               </div>
             </div>
 
+            {/* Repetir atendimento */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <label className="text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 text-slate-400" />
+                Repetir atendimento
+              </label>
+              <select
+                value={form.repetir_dias}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    repetir_dias: parseInt(e.target.value),
+                  }))
+                }
+                className="w-full border rounded-lg px-3 py-2 text-sm bg-white"
+              >
+                {REPEAT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              {form.repetir_dias > 0 && (
+                <p className="text-xs text-slate-500 mt-1.5">
+                  Serão criados agendamentos recorrentes por até 3 meses.
+                </p>
+              )}
+            </div>
+
             {/* Reagendar (apenas ao editar) */}
             {editing && (
               <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
@@ -934,36 +999,6 @@ export default function AppAgenda() {
               />
             </div>
 
-            {/* Repetir atendimento */}
-            {!editing && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <label className="text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-2">
-                  <RefreshCw className="w-4 h-4 text-slate-400" />
-                  Repetir atendimento
-                </label>
-                <select
-                  value={form.repetir_dias}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      repetir_dias: parseInt(e.target.value),
-                    }))
-                  }
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-white"
-                >
-                  {REPEAT_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-                {form.repetir_dias > 0 && (
-                  <p className="text-xs text-slate-500 mt-1.5">
-                    Serão criados agendamentos recorrentes por até 3 meses.
-                  </p>
-                )}
-              </div>
-            )}
 
             {/* Aviso de confirmação por e-mail */}
             {!editing &&
