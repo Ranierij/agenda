@@ -22,7 +22,8 @@ const STATUS_STYLE = {
 const HOUR_HEIGHT_BASE = 60; // px por hora (base)
 const GRID_START_H = 7;
 const HOURS_COUNT = 15; // 07:00 → 21:00
-const MIN_SLOT_HEIGHT = 58;
+const MIN_SLOT_HEIGHT = 78;
+const MIN_EVENT_HEIGHT = 72;
 
 function timeToMinutes(t) {
   const [h, m] = (t || "00:00").split(":").map(Number);
@@ -596,7 +597,7 @@ export default function AgendaColunas({
                     const startMin = timeToMinutes(ag.hora);
                     const dur = ag.duracao_minutos || 60;
                     const top = (startMin - GRID_START_MIN) * pxPerMin;
-                    const height = Math.max(dur * pxPerMin, MIN_SLOT_HEIGHT);
+                    const height = Math.max(dur * pxPerMin, MIN_EVENT_HEIGHT);
                     const style =
                       STATUS_STYLE[ag.status] || STATUS_STYLE.agendado;
 
@@ -619,7 +620,7 @@ export default function AgendaColunas({
                         <div className="px-2 py-1 h-full flex flex-col overflow-hidden gap-0.5">
                           {/* Linha hora */}
                           <p
-                            className="text-[10px] sm:text-[11px] font-semibold leading-tight truncate"
+                            className="text-[11px] font-semibold leading-4 truncate"
                             style={{ color: style.text }}
                           >
                             {ag.hora}
@@ -627,7 +628,7 @@ export default function AgendaColunas({
                           </p>
                           {/* Nome cliente — sempre visível se height >= 28 */}
                           <p
-                            className="text-[11px] sm:text-xs font-bold leading-tight truncate"
+                            className="text-xs font-bold leading-4 truncate"
                             style={{ color: style.text }}
                             title={ag.cliente_nome}
                           >
@@ -635,13 +636,13 @@ export default function AgendaColunas({
                           </p>
                           {/* Serviço — aparece se tem espaço */}
                           <p
-                            className="text-[10px] sm:text-[11px] leading-tight truncate"
+                            className="text-[11px] leading-4 truncate"
                             style={{ color: style.border }}
                             title={ag.servico_nome}
                           >
                             {ag.servico_nome}
                           </p>
-                          {height >= 68 &&
+                          {height >= 92 &&
                             viewMode === "week" &&
                             ag.profissional_nome && (
                               <p
@@ -651,7 +652,7 @@ export default function AgendaColunas({
                                 {ag.profissional_nome}
                               </p>
                             )}
-                          {height >= 56 && (
+                          {height >= 92 && (
                             <div className="flex gap-0.5 mt-auto opacity-0 group-hover:opacity-100 transition-opacity">
                               {ag.status !== "concluido" && (
                                 <button
