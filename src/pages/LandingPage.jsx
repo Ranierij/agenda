@@ -1098,9 +1098,6 @@ export default function LandingPage() {
                 <div className="w-10 h-10 bg-gradient-to-br from-rose-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg shadow-rose-500/30">
                   <Rocket className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-white font-bold text-xl tracking-tight">
-                  TurboSaaS
-                </span>
               </div>
               <Badge className="mb-5 bg-white/10 text-white/80 border-white/20 text-sm"></Badge>
               <h2 className="text-3xl sm:text-4xl font-bold text-white mb-5 leading-tight">
