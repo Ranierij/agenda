@@ -65,6 +65,10 @@ export default function AppLayout() {
     supabaseApi.auth.logout("/");
   };
 
+  const openMobileMenu = () => {
+    setMobileMenuOpen(true);
+  };
+
   if (loading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-slate-50">
@@ -216,8 +220,14 @@ export default function AppLayout() {
           <div className="flex items-center gap-2 min-w-0">
             <button
               type="button"
-              onClick={() => setMobileMenuOpen(true)}
-              className="md:hidden p-2 -ml-1 rounded-lg text-slate-600 hover:bg-slate-100"
+              onPointerDown={(event) => {
+                if (event.pointerType !== "mouse") {
+                  event.preventDefault();
+                  openMobileMenu();
+                }
+              }}
+              onClick={openMobileMenu}
+              className="md:hidden -ml-1 flex h-11 w-11 touch-manipulation items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 active:bg-slate-100"
               aria-label="Abrir menu"
             >
               <Menu className="w-5 h-5" />
