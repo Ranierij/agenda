@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabaseApi } from "@/api/supabaseApi";
 import { Navigate, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
@@ -57,6 +57,10 @@ export default function AppLayout() {
   const currentSection =
     location.pathname.split("/app/")[1]?.split("/")[0] || "dashboard";
 
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname, location.search]);
+
   const handleLogout = () => {
     supabaseApi.auth.logout("/");
   };
@@ -105,7 +109,7 @@ export default function AppLayout() {
       {navItems.map((item) => (
         <NavLink
           key={item.to}
-          to={{ pathname: item.to, search }}
+          to={{ pathname: `/app/${item.to}`, search }}
           end={item.to === "dashboard"}
           onClick={() => setMobileMenuOpen(false)}
           className={({ isActive }) =>
@@ -183,10 +187,10 @@ export default function AppLayout() {
           <button
             type="button"
             aria-label="Fechar menu"
-            className="absolute inset-0 bg-slate-950/60"
+            className="absolute inset-0 z-0 bg-slate-950/60"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <aside className="relative h-full w-[min(18rem,85vw)] bg-slate-900 text-white flex flex-col shadow-2xl">
+          <aside className="relative z-10 h-full w-[min(18rem,85vw)] bg-slate-900 text-white flex flex-col shadow-2xl">
             <div className="p-4 border-b border-slate-700/50 flex items-center justify-between gap-3">
               {brandBlock}
               <button
