@@ -30,6 +30,23 @@ function gerarSlots(horaInicio, horaFim, duracaoMin) {
   return slots;
 }
 
+function getLocalDateValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function timeToMinutes(time) {
+  const [hour, minute] = (time || "00:00").split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+function getCurrentMinutes() {
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes();
+}
+
 const DIAS_MAP = {
   0: "dom",
   1: "seg",
@@ -72,9 +89,7 @@ export default function AgendamentoPublico() {
   });
   const [form, setForm] = useState({ nome: "", telefone: "", observacoes: "" });
   const [saving, setSaving] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [selectedDate, setSelectedDate] = useState(getLocalDateValue());
 
   useSalaoTheme(salao);
   useDocumentTitle(
@@ -137,14 +152,17 @@ export default function AgendamentoPublico() {
     const dur = selected.servico.duracao_minutos || 60;
     const todos = gerarSlots(prof?.hora_inicio, prof?.hora_fim, dur);
     return todos.filter((slot) => {
-      const slotMin =
-        Number(slot.split(":")[0]) * 60 + Number(slot.split(":")[1]);
+      const slotMin = timeToMinutes(slot);
       const slotFim = slotMin + dur;
+
+      if (selectedDate === getLocalDateValue() && slotMin < getCurrentMinutes()) {
+        return false;
+      }
+
       return !agendamentosExistentes.some((ag) => {
         if (ag.profissional_id !== selected.profissional.id) return false;
         if (ag.status === "cancelado") return false;
-        const agMin =
-          Number(ag.hora.split(":")[0]) * 60 + Number(ag.hora.split(":")[1]);
+        const agMin = timeToMinutes(ag.hora);
         const agFim = agMin + (ag.duracao_minutos || 60);
         return slotMin < agFim && slotFim > agMin;
       });
@@ -153,6 +171,13 @@ export default function AgendamentoPublico() {
 
   const confirmar = async () => {
     if (!form.nome || !form.telefone) return;
+    if (
+      selectedDate === getLocalDateValue() &&
+      timeToMinutes(selected.hora) < getCurrentMinutes()
+    ) {
+      setSelected((s) => ({ ...s, hora: "" }));
+      return;
+    }
     setSaving(true);
     await supabaseApi.entities.Agendamento.create({
       company_id: salao.id,

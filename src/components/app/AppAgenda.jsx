@@ -161,6 +161,15 @@ export default function AppAgenda() {
     return `${year}-${month}-${day}`;
   };
 
+  const getCurrentMinutes = () => {
+    const now = new Date();
+    return now.getHours() * 60 + now.getMinutes();
+  };
+
+  const isPastTimeToday = (date, time) =>
+    date === formatDateValue(new Date()) &&
+    timeToMinutes(time) < getCurrentMinutes();
+
   // Verifica conflito de horário: mesmo profissional, mesmo dia, horário sobrepostos
   const hasConflict = (profId, hora, duracao, excludeId = null) => {
     if (!profId) return false;
@@ -218,6 +227,9 @@ export default function AppAgenda() {
   const openEdit = (ag) => {
     // Clique em slot vazio: abre novo agendamento pré-preenchido
     if (ag._novo) {
+      if (ag.data && ag.data !== selectedDate) {
+        setSelectedDate(ag.data);
+      }
       setEditing(null);
       setForm({
         ...EMPTY_FORM,
@@ -299,6 +311,14 @@ export default function AppAgenda() {
     if (!form.cliente_nome || !form.servico_nome || !form.hora) {
       toast({
         title: "Preencha cliente, serviço e horário",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!editing && isPastTimeToday(selectedDate, form.hora)) {
+      toast({
+        title: "Horário indisponível",
+        description: "Este horário já passou para o dia de hoje.",
         variant: "destructive",
       });
       return;

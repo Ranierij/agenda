@@ -59,6 +59,18 @@ function getWeekDays(baseDate) {
   return days;
 }
 
+function getLocalDateValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getCurrentMinutes() {
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes();
+}
+
 // Gera os slots de hora de acordo com o intervalo
 function buildHourSlots(intervalMin) {
   const slots = [];
@@ -215,6 +227,7 @@ export default function AgendaColunas({
     if (viewMode === "day") {
       return colunasVisiveis.map((col) => ({
         ...col,
+        date: selectedDate,
         label: col.nome,
         sublabel: col.especialidade,
         ags: getAgs(col.id, selectedDate),
@@ -224,6 +237,7 @@ export default function AgendaColunas({
         const info = getDayLabel(date);
         return {
           id: date,
+          date,
           nome: `${info.weekDay} ${info.dayNum}`,
           sublabel: "",
           isToday: info.isToday,
@@ -250,16 +264,23 @@ export default function AgendaColunas({
   );
   const totalGrid = HOURS_COUNT * 60 * pxPerMin;
   const GRID_START_MIN = GRID_START_H * 60;
+  const todayDate = getLocalDateValue();
 
-  const handleSlotClick = (colId, absMin) => {
+  const isPastEmptySlot = (date, absMin) =>
+    date === todayDate && absMin < getCurrentMinutes();
+
+  const handleSlotClick = (col, absMin) => {
+    if (isPastEmptySlot(col.date, absMin)) return;
+
     const hora = `${String(Math.floor(absMin / 60)).padStart(2, "0")}:${String(absMin % 60).padStart(2, "0")}`;
-    const prof = colunasBase.find((c) => c.id === colId);
+    const prof = colunasBase.find((c) => c.id === col.id);
     onEdit({
       _novo: true,
       hora,
-      profissional_id: colId === "__sem_prof__" ? "" : colId,
+      profissional_id:
+        viewMode === "day" && col.id !== "__sem_prof__" ? col.id : "",
       profissional_nome: prof?.nome || "",
-      data: selectedDate,
+      data: col.date,
     });
   };
 
@@ -551,7 +572,11 @@ export default function AgendaColunas({
                   {hourSlots.map((slot, i) => (
                     <div
                       key={i}
-                      className="absolute left-0 right-0 group/slot cursor-pointer"
+                      className={`absolute left-0 right-0 group/slot ${
+                        isPastEmptySlot(col.date, slot.absMin)
+                          ? "cursor-not-allowed bg-slate-100/60"
+                          : "cursor-pointer"
+                      }`}
                       style={{
                         top: i * slotHeight,
                         height: slotHeight,
@@ -565,14 +590,16 @@ export default function AgendaColunas({
                           colId: col.id,
                           slotIdx: i,
                           label: slot.label,
+                          blocked: isPastEmptySlot(col.date, slot.absMin),
                         })
                       }
                       onMouseLeave={() => setHoveredSlot(null)}
-                      onClick={() => handleSlotClick(col.id, slot.absMin)}
+                      onClick={() => handleSlotClick(col, slot.absMin)}
                     >
                       {/* Tooltip hover */}
                       {hoveredSlot?.colId === col.id &&
-                        hoveredSlot?.slotIdx === i && (
+                        hoveredSlot?.slotIdx === i &&
+                        !hoveredSlot.blocked && (
                           <div
                             className="absolute left-1/2 -translate-x-1/2 z-30 px-2 py-1 rounded-lg text-xs font-semibold border shadow-md pointer-events-none flex items-center gap-1.5"
                             style={{
