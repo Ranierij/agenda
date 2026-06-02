@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
 function Calendar({ className, classNames, showOutsideDays = true, ...props }) {
+  const hasDropdownCaption = props.captionLayout?.startsWith("dropdown");
+
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
@@ -14,7 +16,13 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }) {
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",
         caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium",
+        caption_label: hasDropdownCaption ? "sr-only" : "text-sm font-medium",
+        caption_dropdowns: "flex items-center gap-2 text-sm font-medium",
+        dropdown_month: "relative",
+        dropdown_year: "relative",
+        dropdown:
+          "h-8 rounded-md border border-input bg-background px-2 text-sm font-medium outline-none focus:ring-1 focus:ring-ring",
+        vhidden: "sr-only",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "outline" }),
