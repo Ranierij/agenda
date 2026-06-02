@@ -15,7 +15,7 @@ import {
   Plus,
   ChevronLeft,
   ChevronRight,
-  Calendar,
+  Calendar as CalendarIcon,
   Check,
   X,
   Pencil,
@@ -28,9 +28,16 @@ import {
   CheckCheck,
   Clock,
 } from "lucide-react";
+import { ptBR } from "date-fns/locale";
 import AgendaColunas from "./AgendaColunas";
 import ListaEsperaModal from "./ListaEsperaModal";
 import { useToast } from "@/components/ui/use-toast";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const STATUS_COLORS = {
   agendado: "bg-slate-100 text-slate-600",
@@ -82,6 +89,7 @@ export default function AppAgenda() {
   const [search, setSearch] = useState("");
   const [listaEsperaOpen, setListaEsperaOpen] = useState(false);
   const [vagaInfo, setVagaInfo] = useState(null);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const { toast } = useToast();
 
   const loadAgendamentos = async () => {
@@ -142,6 +150,15 @@ export default function AppAgenda() {
     const d = new Date(selectedDate + "T12:00:00");
     d.setDate(d.getDate() + delta);
     setSelectedDate(d.toISOString().split("T")[0]);
+  };
+
+  const selectedDateObject = new Date(selectedDate + "T12:00:00");
+
+  const formatDateValue = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   };
 
   // Verifica conflito de horário: mesmo profissional, mesmo dia, horário sobrepostos
@@ -581,36 +598,52 @@ export default function AppAgenda() {
       </div>
 
       {/* Date Nav */}
-      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+      <div className="flex items-center gap-2 sm:gap-3">
         <button
           onClick={() =>
             setSelectedDate(new Date().toISOString().split("T")[0])
           }
-          className="px-4 py-2 bg-white rounded-lg border text-sm font-semibold hover:bg-slate-50 text-slate-700"
+          className="px-4 py-2 bg-white rounded-lg border text-sm font-semibold hover:bg-slate-50 text-slate-700 flex-shrink-0"
         >
           Hoje
         </button>
         <button
           onClick={() => changeDate(-1)}
-          className="p-2 rounded-lg hover:bg-white border transition-colors"
+          className="p-2 rounded-lg hover:bg-white border transition-colors flex-shrink-0"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <button className="min-w-0 max-w-full px-4 py-2 bg-white rounded-lg border text-sm font-medium capitalize text-slate-700 truncate">
-          {dateLabel}
-        </button>
+        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+          <PopoverTrigger asChild>
+            <button className="min-w-0 flex-1 sm:flex-none sm:min-w-56 px-4 py-2 bg-white rounded-lg border text-sm font-medium capitalize text-slate-700 truncate flex items-center justify-center gap-2">
+              <span className="truncate">{dateLabel}</span>
+              <CalendarIcon className="w-4 h-4 text-slate-400 flex-shrink-0" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="center">
+            <CalendarPicker
+              mode="single"
+              selected={selectedDateObject}
+              defaultMonth={selectedDateObject}
+              onSelect={(date) => {
+                if (!date) return;
+                setSelectedDate(formatDateValue(date));
+                setDatePickerOpen(false);
+              }}
+              captionLayout="dropdown-buttons"
+              fromYear={new Date().getFullYear() - 5}
+              toYear={new Date().getFullYear() + 5}
+              locale={ptBR}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
         <button
           onClick={() => changeDate(1)}
-          className="p-2 rounded-lg hover:bg-white border transition-colors"
+          className="p-2 rounded-lg hover:bg-white border transition-colors flex-shrink-0"
         >
           <ChevronRight className="w-4 h-4" />
         </button>
-        <input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="text-sm border rounded-lg px-3 py-2 text-slate-600 bg-white"
-        />
       </div>
 
       {/* Busca */}
@@ -643,7 +676,7 @@ export default function AppAgenda() {
         />
       ) : agendamentosFiltrados.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 sm:p-16 text-center">
-          <Calendar className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+          <CalendarIcon className="w-12 h-12 text-slate-200 mx-auto mb-4" />
           <p className="text-slate-500 font-medium">
             {search
               ? "Nenhum resultado encontrado"
@@ -979,7 +1012,7 @@ export default function AppAgenda() {
             {editing && (
               <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
                 <label className="text-sm font-medium text-blue-700 mb-1.5 flex items-center gap-2 block">
-                  <Calendar className="w-4 h-4 text-blue-400" />
+                  <CalendarIcon className="w-4 h-4 text-blue-400" />
                   Reagendar para outra data
                 </label>
                 <input
