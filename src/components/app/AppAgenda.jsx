@@ -67,8 +67,8 @@ const REPEAT_OPTIONS = [
   { label: "Não repetir", value: 0 },
   { label: "A cada 7 dias (semanal)", value: 7 },
   { label: "A cada 14 dias (quinzenal)", value: 14 },
-  { label: "A cada 28 dias (mensal)", value: 28 },
-  { label: "A cada 45 dias", value: 45 },
+  { label: "A cada 21 dias (mensal)", value: 21 },
+  { label: "A cada 28 dias", value: 28 },
 ];
 
 export default function AppAgenda() {
@@ -358,67 +358,67 @@ export default function AppAgenda() {
     const repetirDias = parseInt(form.repetir_dias) || 0;
 
     try {
-    if (editing) {
-      const dataFinal = form.data_reagendamento || selectedDate;
-      await supabaseApi.entities.Agendamento.update(editing.id, {
-        ...basePayload,
-        status: editing.status,
-        data: dataFinal,
-      });
-      if (repetirDias > 0) {
-        const repeticoes = buildRepeticoes(
-          basePayload,
-          dataFinal,
-          repetirDias,
-          "agendado",
-        );
-        if (repeticoes.length > 0) {
-          await supabaseApi.entities.Agendamento.bulkCreate(repeticoes);
-          toast({
-            title: `Agendamento atualizado com ${repeticoes.length} repetição(ões)!`,
-          });
+      if (editing) {
+        const dataFinal = form.data_reagendamento || selectedDate;
+        await supabaseApi.entities.Agendamento.update(editing.id, {
+          ...basePayload,
+          status: editing.status,
+          data: dataFinal,
+        });
+        if (repetirDias > 0) {
+          const repeticoes = buildRepeticoes(
+            basePayload,
+            dataFinal,
+            repetirDias,
+            "agendado",
+          );
+          if (repeticoes.length > 0) {
+            await supabaseApi.entities.Agendamento.bulkCreate(repeticoes);
+            toast({
+              title: `Agendamento atualizado com ${repeticoes.length} repetição(ões)!`,
+            });
+          } else {
+            toast({ title: "Agendamento atualizado!" });
+          }
         } else {
           toast({ title: "Agendamento atualizado!" });
         }
+        if (dataFinal !== editing.data) {
+          setSelectedDate(dataFinal);
+        }
       } else {
-        toast({ title: "Agendamento atualizado!" });
-      }
-      if (dataFinal !== editing.data) {
-        setSelectedDate(dataFinal);
-      }
-    } else {
-      // Cria o agendamento principal
-      await supabaseApi.entities.Agendamento.create({
-        ...basePayload,
-        data: selectedDate,
-        status: "agendado",
-      });
+        // Cria o agendamento principal
+        await supabaseApi.entities.Agendamento.create({
+          ...basePayload,
+          data: selectedDate,
+          status: "agendado",
+        });
 
-      // Cria repetições (até 3 meses à frente)
-      if (repetirDias > 0) {
-        const repeticoes = buildRepeticoes(
-          basePayload,
-          selectedDate,
-          repetirDias,
-        );
-        if (repeticoes.length > 0) {
-          await supabaseApi.entities.Agendamento.bulkCreate(repeticoes);
-          toast({
-            title: `Agendamento criado com ${repeticoes.length} repetição(ões)!`,
-          });
+        // Cria repetições (até 3 meses à frente)
+        if (repetirDias > 0) {
+          const repeticoes = buildRepeticoes(
+            basePayload,
+            selectedDate,
+            repetirDias,
+          );
+          if (repeticoes.length > 0) {
+            await supabaseApi.entities.Agendamento.bulkCreate(repeticoes);
+            toast({
+              title: `Agendamento criado com ${repeticoes.length} repetição(ões)!`,
+            });
+          } else {
+            toast({ title: "Agendamento criado!" });
+          }
         } else {
           toast({ title: "Agendamento criado!" });
         }
-      } else {
-        toast({ title: "Agendamento criado!" });
+
+        // Envia e-mail de confirmação
+        await sendConfirmationEmail({ ...basePayload, data: selectedDate });
       }
 
-      // Envia e-mail de confirmação
-      await sendConfirmationEmail({ ...basePayload, data: selectedDate });
-    }
-
-    setShowForm(false);
-    loadAgendamentos();
+      setShowForm(false);
+      loadAgendamentos();
     } catch (error) {
       console.error(error);
       toast({
@@ -1061,7 +1061,6 @@ export default function AppAgenda() {
                 }
               />
             </div>
-
 
             {/* Aviso de confirmação por e-mail */}
             {!editing &&
