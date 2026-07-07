@@ -74,6 +74,7 @@ const REPEAT_OPTIONS = [
 export default function AppAgenda() {
   const { company_id, loading: loadingUser } = useCompany();
   const [agendamentos, setAgendamentos] = useState([]);
+  const [agendamentosSemana, setAgendamentosSemana] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [servicos, setServicos] = useState([]);
   const [profissionais, setProfissionais] = useState([]);
@@ -88,9 +89,21 @@ export default function AppAgenda() {
   const [vistaColuna, setVistaColuna] = useState(false);
   const [search, setSearch] = useState("");
   const [listaEsperaOpen, setListaEsperaOpen] = useState(false);
+  const [canceladosOpen, setCanceladosOpen] = useState(false);
   const [vagaInfo, setVagaInfo] = useState(null);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const { toast } = useToast();
+
+  const getWeekRange = (dateValue) => {
+    const start = new Date(dateValue + "T12:00:00");
+    start.setDate(start.getDate() - start.getDay());
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    return {
+      start: start.toISOString().split("T")[0],
+      end: end.toISOString().split("T")[0],
+    };
+  };
 
   const loadAgendamentos = async () => {
     if (!company_id) return;
@@ -110,6 +123,27 @@ export default function AppAgenda() {
     }
 
     setLoading(false);
+  };
+
+  const loadAgendamentosSemana = async () => {
+    if (!company_id) return;
+
+    const { start, end } = getWeekRange(selectedDate);
+    const { data, error } = await supabase
+      .from("Agendamento")
+      .select("*")
+      .eq("company_id", company_id)
+      .gte("data", start)
+      .lte("data", end)
+      .order("data", { ascending: true })
+      .order("hora", { ascending: true });
+
+    if (error) {
+      console.error(error);
+      setAgendamentosSemana([]);
+    } else {
+      setAgendamentosSemana(data || []);
+    }
   };
 
   const loadRefs = async () => {
@@ -143,6 +177,7 @@ export default function AppAgenda() {
     if (company_id) {
       setLoading(true);
       loadAgendamentos();
+      loadAgendamentosSemana();
     }
   }, [company_id, selectedDate]);
 
@@ -419,6 +454,7 @@ export default function AppAgenda() {
 
       setShowForm(false);
       loadAgendamentos();
+      loadAgendamentosSemana();
     } catch (error) {
       console.error(error);
       toast({
@@ -514,6 +550,7 @@ export default function AppAgenda() {
     }
 
     loadAgendamentos();
+    loadAgendamentosSemana();
   };
 
   const marcarFaltou = async (ag) => {
@@ -546,6 +583,7 @@ export default function AppAgenda() {
       ),
     });
     loadAgendamentos();
+    loadAgendamentosSemana();
   };
 
   const dateLabel = new Date(selectedDate + "T12:00:00").toLocaleDateString(
@@ -553,14 +591,25 @@ export default function AppAgenda() {
     { weekday: "long", day: "numeric", month: "long" },
   );
 
+  const agendamentosAtivos = agendamentos.filter(
+    (ag) => ag.status !== "cancelado",
+  );
+  const agendamentosCancelados = agendamentos.filter(
+    (ag) => ag.status === "cancelado",
+  );
+
+  const matchesSearch = (ag) =>
+    ag.cliente_nome?.toLowerCase().includes(search.toLowerCase()) ||
+    ag.servico_nome?.toLowerCase().includes(search.toLowerCase()) ||
+    ag.profissional_nome?.toLowerCase().includes(search.toLowerCase());
+
   const agendamentosFiltrados = search.trim()
-    ? agendamentos.filter(
-        (ag) =>
-          ag.cliente_nome?.toLowerCase().includes(search.toLowerCase()) ||
-          ag.servico_nome?.toLowerCase().includes(search.toLowerCase()) ||
-          ag.profissional_nome?.toLowerCase().includes(search.toLowerCase()),
-      )
-    : agendamentos;
+    ? agendamentosAtivos.filter(matchesSearch)
+    : agendamentosAtivos;
+
+  const canceladosFiltrados = search.trim()
+    ? agendamentosCancelados.filter(matchesSearch)
+    : agendamentosCancelados;
 
   if (loadingUser)
     return (
@@ -606,6 +655,18 @@ export default function AppAgenda() {
             className="w-full sm:w-auto gap-2"
           >
             <Clock className="w-4 h-4 text-amber-500" /> Lista de Espera
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setCanceladosOpen(true)}
+            className="w-full sm:w-auto gap-2 border-red-100 text-red-600 hover:bg-red-50 hover:text-red-700"
+          >
+            <X className="w-4 h-4" /> Cancelados
+            {agendamentosCancelados.length > 0 && (
+              <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">
+                {agendamentosCancelados.length}
+              </span>
+            )}
           </Button>
           <Button
             onClick={openCreate}
@@ -686,7 +747,7 @@ export default function AppAgenda() {
         </div>
       ) : vistaColuna ? (
         <AgendaColunas
-          agendamentos={agendamentos}
+          agendamentos={agendamentosSemana}
           profissionais={profissionais}
           onEdit={openEdit}
           onStatusChange={updateStatus}
@@ -798,6 +859,64 @@ export default function AppAgenda() {
           ))}
         </div>
       )}
+
+      <Dialog open={canceladosOpen} onOpenChange={setCanceladosOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Agendamentos cancelados</DialogTitle>
+          </DialogHeader>
+          {canceladosFiltrados.length === 0 ? (
+            <div className="rounded-xl border border-dashed p-8 text-center text-sm text-slate-400">
+              Nenhum agendamento cancelado neste dia.
+            </div>
+          ) : (
+            <div className="max-h-[60dvh] space-y-2 overflow-y-auto pr-1">
+              {canceladosFiltrados.map((ag) => (
+                <div
+                  key={ag.id}
+                  className="rounded-xl border border-red-100 bg-red-50/40 p-3 flex items-center gap-3"
+                >
+                  <div className="w-14 flex-shrink-0">
+                    <p className="text-sm font-bold text-slate-900">
+                      {ag.hora}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {ag.duracao_minutos}min
+                    </p>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-slate-900 truncate">
+                      {ag.cliente_nome}
+                    </p>
+                    <p className="text-sm text-slate-500 truncate">
+                      {ag.servico_nome}
+                      {ag.profissional_nome ? ` - ${ag.profissional_nome}` : ""}
+                    </p>
+                    {ag.valor > 0 && (
+                      <p className="text-xs text-emerald-600 font-medium mt-0.5">
+                        R${" "}
+                        {Number(ag.valor).toLocaleString("pt-BR", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </p>
+                    )}
+                  </div>
+                  <Badge className="border-0 bg-red-100 text-red-700">
+                    cancelado
+                  </Badge>
+                  <button
+                    onClick={() => openEdit(ag)}
+                    className="p-1.5 rounded-lg hover:bg-red-100 text-slate-400 transition-colors"
+                    title="Editar"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Lista de Espera Modal */}
       <ListaEsperaModal

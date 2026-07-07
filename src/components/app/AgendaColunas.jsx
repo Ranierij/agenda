@@ -119,7 +119,7 @@ export default function AgendaColunas({
   onDateChange,
 }) {
   const [viewMode, setViewMode] = useState("day");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [colWidth, setColWidth] = useState(160);
   const [autoWidth, setAutoWidth] = useState(true);
   const [intervalMin, setIntervalMin] = useState(30);
@@ -159,14 +159,17 @@ export default function AgendaColunas({
       const sideW = sidebarOpen ? 220 : 0;
       const available = containerRef.current.offsetWidth - 56 - sideW - 8;
       const count =
-        colunasBase.filter((c) => profVisiveis[c.id] !== false).length || 1;
+        viewMode === "week"
+          ? 7
+          : colunasBase.filter((c) => profVisiveis[c.id] !== false).length ||
+            1;
       setColWidth(Math.max(140, Math.floor(available / count)));
     };
     updateWidth();
     const ro = new ResizeObserver(updateWidth);
     ro.observe(containerRef.current);
     return () => ro.disconnect();
-  }, [autoWidth, sidebarOpen, profissionais, profVisiveis]);
+  }, [autoWidth, sidebarOpen, profissionais, profVisiveis, viewMode]);
 
   const weekDays = useMemo(() => getWeekDays(selectedDate), [selectedDate]);
 
@@ -506,14 +509,12 @@ export default function AgendaColunas({
                     position: "relative",
                   }}
                 >
-                  {slot.label.endsWith(":00") && (
-                    <span
-                      className="text-xs text-slate-400 font-mono absolute"
-                      style={{ top: -8, left: 4, fontSize: 10 }}
-                    >
-                      {slot.label}
-                    </span>
-                  )}
+                  <span
+                    className="text-xs text-slate-400 font-mono absolute"
+                    style={{ top: 8, left: 4, fontSize: 10 }}
+                  >
+                    {slot.label}
+                  </span>
                 </div>
               ))}
             </div>
