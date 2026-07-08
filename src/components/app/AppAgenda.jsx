@@ -27,6 +27,7 @@ import {
   Search,
   CheckCheck,
   Clock,
+  Undo2,
 } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import AgendaColunas from "./AgendaColunas";
@@ -553,6 +554,14 @@ export default function AppAgenda() {
     loadAgendamentosSemana();
   };
 
+  const restaurarCancelado = async (ag) => {
+    await updateStatus(ag.id, "agendado");
+    toast({
+      title: "Agendamento restaurado!",
+      description: `${ag.cliente_nome} voltou para a agenda.`,
+    });
+  };
+
   const marcarFaltou = async (ag) => {
     await supabaseApi.entities.Agendamento.update(ag.id, { status: "faltou" });
 
@@ -904,6 +913,13 @@ export default function AppAgenda() {
                   <Badge className="border-0 bg-red-100 text-red-700">
                     cancelado
                   </Badge>
+                  <button
+                    onClick={() => restaurarCancelado(ag)}
+                    className="p-1.5 rounded-lg hover:bg-emerald-100 text-emerald-600 transition-colors"
+                    title="Desfazer cancelamento"
+                  >
+                    <Undo2 className="w-4 h-4" />
+                  </button>
                   <button
                     onClick={() => openEdit(ag)}
                     className="p-1.5 rounded-lg hover:bg-red-100 text-slate-400 transition-colors"
