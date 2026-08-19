@@ -39,6 +39,23 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  findAppointmentConflict,
+  isExactAppointmentDuplicate,
+  isValidAppointmentInterval,
+  minutesToTime,
+  timeToMinutes,
+} from "@/lib/appointmentConflict";
 
 const STATUS_COLORS = {
   agendado: "bg-slate-100 text-slate-600",
@@ -93,6 +110,7 @@ export default function AppAgenda() {
   const [canceladosOpen, setCanceladosOpen] = useState(false);
   const [vagaInfo, setVagaInfo] = useState(null);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [pendingConflict, setPendingConflict] = useState(null);
   const { toast } = useToast();
 
   const getWeekRange = (dateValue) => {
@@ -207,24 +225,18 @@ export default function AppAgenda() {
     timeToMinutes(time) < getCurrentMinutes();
 
   // Verifica conflito de horário: mesmo profissional, mesmo dia, horário sobrepostos
-  const hasConflict = (profId, hora, duracao, excludeId = null) => {
-    if (!profId) return false;
-    const startNew = timeToMinutes(hora);
-    const endNew = startNew + (duracao || 60);
-    return agendamentos.some((ag) => {
-      if (ag.id === excludeId) return false;
-      if (ag.profissional_id !== profId) return false;
-      if (ag.status === "cancelado") return false;
-      const startEx = timeToMinutes(ag.hora);
-      const endEx = startEx + (ag.duracao_minutos || 60);
-      return startNew < endEx && endNew > startEx;
-    });
-  };
+  const getAppointmentsForValidation = (date) =>
+    date === selectedDate ? agendamentos : agendamentosSemana;
 
-  const timeToMinutes = (t) => {
-    const [h, m] = (t || "00:00").split(":").map(Number);
-    return h * 60 + m;
-  };
+  const getConflict = (date, profId, hora, duracao, excludeId = null) =>
+    findAppointmentConflict({
+      appointments: getAppointmentsForValidation(date),
+      professionalId: profId,
+      date,
+      time: hora,
+      durationMinutes: duracao,
+      excludeId,
+    });
 
   const buildRepeticoes = (
     payload,
@@ -343,7 +355,7 @@ export default function AppAgenda() {
     }).catch(() => {});
   };
 
-  const save = async () => {
+  const save = async ({ allowOverlap = false } = {}) => {
     if (!form.cliente_nome || !form.servico_nome || !form.hora) {
       toast({
         title: "Preencha cliente, serviço e horário",
@@ -351,7 +363,10 @@ export default function AppAgenda() {
       });
       return;
     }
-    if (!editing && isPastTimeToday(selectedDate, form.hora)) {
+    const dataFinal = editing ? form.data_reagendamento || selectedDate : selectedDate;
+    const duration = parseInt(form.duracao_minutos) || 60;
+    const repetirDias = parseInt(form.repetir_dias) || 0;
+    if (!editing && isPastTimeToday(dataFinal, form.hora)) {
       toast({
         title: "Horário indisponível",
         description: "Este horário já passou para o dia de hoje.",
@@ -360,21 +375,55 @@ export default function AppAgenda() {
       return;
     }
     const excludeId = editing?.id || null;
-    if (
-      hasConflict(
-        form.profissional_id,
-        form.hora,
-        form.duracao_minutos,
-        excludeId,
-      )
-    ) {
+    if (!isValidAppointmentInterval(form.hora, duration)) {
       toast({
-        title: "Conflito de horário",
-        description: "Este profissional já tem um agendamento neste horário.",
+        title: "HorÃ¡rio invÃ¡lido",
+        description:
+          "Use horÃ¡rios e duraÃ§Ãµes em intervalos de 15 minutos ou mais.",
         variant: "destructive",
       });
       return;
     }
+
+    if (
+      isExactAppointmentDuplicate({
+        appointments: getAppointmentsForValidation(dataFinal),
+        professionalId: form.profissional_id,
+        date: dataFinal,
+        time: form.hora,
+        durationMinutes: duration,
+        clientId: form.cliente_id,
+        clientName: form.cliente_nome,
+        serviceId: form.servico_id,
+        serviceName: form.servico_nome,
+        excludeId,
+      })
+    ) {
+      toast({
+        title: "Agendamento duplicado",
+        description: "JÃ¡ existe um agendamento igual para este profissional.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const conflict = getConflict(
+      dataFinal,
+      form.profissional_id,
+      form.hora,
+      duration,
+      excludeId,
+    );
+
+    if (conflict && !allowOverlap) {
+      setPendingConflict({
+        appointment: conflict,
+        requestedTime: form.hora,
+        requestedDate: dataFinal,
+      });
+      return;
+    }
+
     setSaving(true);
     const basePayload = {
       company_id,
@@ -385,17 +434,15 @@ export default function AppAgenda() {
       profissional_id: form.profissional_id,
       profissional_nome: form.profissional_nome,
       hora: form.hora,
-      duracao_minutos: parseInt(form.duracao_minutos) || 60,
+      duracao_minutos: duration,
       valor: parseFloat(form.valor) || 0,
       forma_pagamento: form.forma_pagamento,
       observacoes: form.observacoes,
-      repetir_dias: parseInt(form.repetir_dias) || 0,
+      repetir_dias: repetirDias,
     };
-    const repetirDias = parseInt(form.repetir_dias) || 0;
 
     try {
       if (editing) {
-        const dataFinal = form.data_reagendamento || selectedDate;
         await supabaseApi.entities.Agendamento.update(editing.id, {
           ...basePayload,
           status: editing.status,
@@ -454,6 +501,7 @@ export default function AppAgenda() {
       }
 
       setShowForm(false);
+      setPendingConflict(null);
       loadAgendamentos();
       loadAgendamentosSemana();
     } catch (error) {
@@ -619,6 +667,13 @@ export default function AppAgenda() {
   const canceladosFiltrados = search.trim()
     ? agendamentosCancelados.filter(matchesSearch)
     : agendamentosCancelados;
+
+  const formatConflictRange = (ag) => {
+    if (!ag?.hora) return "";
+    const start = timeToMinutes(ag.hora);
+    const end = start + (parseInt(ag.duracao_minutos) || 60);
+    return `${ag.hora} - ${minutesToTime(end)}`;
+  };
 
   if (loadingUser)
     return (
@@ -1076,6 +1131,7 @@ export default function AppAgenda() {
                 </label>
                 <Input
                   type="time"
+                  step="900"
                   value={form.hora}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, hora: e.target.value }))
@@ -1088,8 +1144,8 @@ export default function AppAgenda() {
                 </label>
                 <Input
                   type="number"
-                  min="5"
-                  step="5"
+                  min="15"
+                  step="15"
                   value={form.duracao_minutos}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, duracao_minutos: e.target.value }))
@@ -1234,6 +1290,53 @@ export default function AppAgenda() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={Boolean(pendingConflict)}
+        onOpenChange={(open) => {
+          if (!open) setPendingConflict(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>AtenÃ§Ã£o!</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span className="block">
+                JÃ¡ existe um agendamento nesse perÃ­odo. Deseja realmente
+                realizar um novo agendamento para este horÃ¡rio?
+              </span>
+              {pendingConflict?.appointment && (
+                <span className="block rounded-lg bg-slate-50 p-3 text-slate-700">
+                  <strong>{pendingConflict.appointment.cliente_nome}</strong>
+                  <br />
+                  {pendingConflict.appointment.servico_nome} em{" "}
+                  {formatConflictRange(pendingConflict.appointment)}
+                </span>
+              )}
+              <span className="block">
+                Novo horÃ¡rio solicitado:{" "}
+                <strong>{pendingConflict?.requestedTime}</strong>
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingConflict(null)}>
+              NÃ£o
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const confirmedConflict = pendingConflict;
+                setPendingConflict(null);
+                if (confirmedConflict) save({ allowOverlap: true });
+              }}
+              className="text-white"
+              style={{ backgroundColor: "var(--company-primary, #f43f5e)" }}
+            >
+              Sim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

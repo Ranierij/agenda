@@ -1,139 +1,273 @@
-import React, { useState, useEffect } from "react";
-import { supabaseApi } from "@/api/supabaseApi";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useCompany } from "@/hooks/useCompany";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/components/ui/use-toast";
+import { aiGrowthApi } from "@/services/aiGrowthApi";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  Brain,
-  MessageSquare,
-  Users,
-  Sparkles,
-  Send,
+  Bot,
+  CalendarClock,
+  CheckCircle2,
   Copy,
-  Check,
+  Gift,
+  MessageSquare,
+  PencilLine,
+  Send,
+  Sparkles,
   TrendingUp,
+  UserRoundCheck,
+  UserRoundX,
+  Users,
+  Wand2,
 } from "lucide-react";
 
+const quickPrompts = [
+  "Crie uma campanha para clientes que nao voltam ha 60 dias.",
+  "Tenho poucos agendamentos essa semana.",
+  "Crie mensagens para os aniversariantes de hoje.",
+  "Quero aumentar meus agendamentos.",
+  "Monte uma campanha para clientes VIP.",
+  "Crie uma campanha para clientes que faltaram ou cancelaram.",
+];
+
+const defaultCampaign = {
+  title: "",
+  objective: "",
+  targetAudience: "",
+  audienceSize: 0,
+  message: "",
+  reason: "",
+  cta: "",
+  recommendedSendTime: "",
+  tone: "casual",
+  channel: "whatsapp",
+  confidence: 0,
+  suggestedActions: [],
+  segments: [],
+  warnings: [],
+};
+
+function metricCards(dashboard) {
+  return [
+    {
+      label: "Clientes cadastrados",
+      value: dashboard?.totalClientes || 0,
+      icon: Users,
+      color: "text-slate-800",
+    },
+    {
+      label: "Clientes ativos",
+      value: dashboard?.clientesAtivos || 0,
+      icon: UserRoundCheck,
+      color: "text-emerald-700",
+    },
+    {
+      label: "Clientes inativos",
+      value: dashboard?.clientesInativos || 0,
+      icon: UserRoundX,
+      color: "text-rose-700",
+    },
+    {
+      label: "Aniversariantes hoje",
+      value: dashboard?.aniversariantesHoje || 0,
+      icon: Gift,
+      color: "text-fuchsia-700",
+    },
+    {
+      label: "Agendamentos futuros",
+      value: dashboard?.agendamentosFuturos || 0,
+      icon: CalendarClock,
+      color: "text-blue-700",
+    },
+    {
+      label: "Sem retorno 60d",
+      value: dashboard?.clientesSemRetorno60Dias || 0,
+      icon: TrendingUp,
+      color: "text-orange-700",
+    },
+    {
+      label: "Campanhas enviadas",
+      value: dashboard?.campanhasEnviadas || 0,
+      icon: Send,
+      color: "text-slate-800",
+    },
+    {
+      label: "Taxa de resposta",
+      value: `${dashboard?.taxaResposta || 0}%`,
+      icon: MessageSquare,
+      color: "text-indigo-700",
+    },
+  ];
+}
+
+function ChatBubble({ message }) {
+  const isUser = message.role === "user";
+
+  return (
+    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+      <div
+        className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+          isUser
+            ? "text-white rounded-br-md"
+            : "bg-slate-100 text-slate-800 rounded-bl-md"
+        }`}
+        style={isUser ? { backgroundColor: "var(--company-primary, #f43f5e)" } : {}}
+      >
+        <p className="whitespace-pre-wrap">{message.content}</p>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <label className="space-y-1.5">
+      <span className="text-xs font-medium text-slate-500">{label}</span>
+      {children}
+    </label>
+  );
+}
+
 export default function AppAI() {
-  const { company_id, loading: loadingUser } = useCompany();
-  const [clientes, setClientes] = useState([]);
-  const [agendamentos, setAgendamentos] = useState([]);
-  const [mensagem, setMensagem] = useState("");
-  const [gerando, setGerando] = useState(false);
-  const [copiado, setCopiado] = useState(false);
-  const [tipoMensagem, setTipoMensagem] = useState("reativacao");
+  const { company_id, loading: loadingCompany } = useCompany();
+  const { toast } = useToast();
+  const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState([
+    {
+      role: "assistant",
+      content:
+        "Ola! Sou o agente AI Growth. Posso criar campanhas, analisar clientes inativos, aniversariantes, agenda, VIPs e oportunidades de retorno.",
+    },
+  ]);
+  const [campaign, setCampaign] = useState(defaultCampaign);
+  const [lastToolResults, setLastToolResults] = useState(null);
+  const chatEndRef = useRef(null);
 
   useEffect(() => {
     if (!company_id) return;
-    Promise.all([
-      supabaseApi.entities.Cliente.filter({ company_id }, "nome", 500).catch(
-        () => [],
-      ),
-      supabaseApi.entities.Agendamento.filter({ company_id }, "-data", 300).catch(
-        () => [],
-      ),
-    ]).then(([cls, ags]) => {
-      setClientes(cls);
-      setAgendamentos(ags);
-      setLoading(false);
-    });
-  }, [company_id]);
 
-  const hoje = new Date();
-  const limite30 = new Date(hoje.getTime() - 30 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split("T")[0];
-  const clientesComAgendamento = new Set(
-    agendamentos.filter((a) => a.data >= limite30).map((a) => a.cliente_nome),
-  );
-  const clientesInativos = clientes.filter(
-    (c) => !clientesComAgendamento.has(c.nome),
-  );
+    let active = true;
+    setLoading(true);
 
-  // Serviços mais frequentes
-  const servicoCount = agendamentos.reduce((acc, a) => {
-    if (a.servico_nome) acc[a.servico_nome] = (acc[a.servico_nome] || 0) + 1;
-    return acc;
-  }, {});
-  const servicoTop =
-    Object.entries(servicoCount).sort((a, b) => b[1] - a[1])[0]?.[0] ||
-    "seus serviços";
+    aiGrowthApi
+      .dashboard(company_id)
+      .then((data) => {
+        if (!active) return;
+        setDashboardData(data);
+      })
+      .catch((error) => {
+        toast({
+          title: "AI Growth indisponivel",
+          description: error.message,
+          variant: "destructive",
+        });
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
-  const oportunidades = [
-    {
-      id: "reativacao",
-      titulo: `${clientesInativos.length} clientes inativos há +30 dias`,
-      descricao:
-        clientesInativos.length > 0
-          ? `${clientesInativos
-              .slice(0, 3)
-              .map((c) => c.nome)
-              .join(
-                ", ",
-              )}${clientesInativos.length > 3 ? ` e mais ${clientesInativos.length - 3}` : ""} não voltaram recentemente.`
-          : "Ótimo! Nenhum cliente inativo no momento.",
-      cor: clientesInativos.length > 0 ? "alta" : "oportunidade",
-      icone: Users,
-    },
-    {
-      id: "agendamento",
-      titulo: "Lembrete de agendamento futuro",
-      descricao:
-        "Envie lembretes 24h antes para reduzir no-show e aumentar confirmações.",
-      cor: "media",
-      icone: MessageSquare,
-    },
-    {
-      id: "pacote",
-      titulo: `Oferta de pacote — baseada em "${servicoTop}"`,
-      descricao:
-        "Clientes frequentes têm maior propensão a aderir a pacotes mensais.",
-      cor: "oportunidade",
-      icone: TrendingUp,
-    },
-    {
-      id: "aniversario",
-      titulo: "Mensagem de aniversário",
-      descricao: "Crie conexão emocional com clientes no dia do aniversário.",
-      cor: "oportunidade",
-      icone: Sparkles,
-    },
-  ];
-
-  const corConfig = {
-    alta: "bg-red-100 text-red-700",
-    media: "bg-yellow-100 text-yellow-700",
-    oportunidade: "bg-emerald-100 text-emerald-700",
-  };
-
-  const gerarMensagem = async () => {
-    setGerando(true);
-    setMensagem("");
-    const nomeSalao =
-      (await supabaseApi.auth.me().catch(() => null))?.nome_salao || "nosso salão";
-    const prompts = {
-      reativacao: `Crie uma mensagem de WhatsApp para reativar clientes do salão "${nomeSalao}" que não voltaram há mais de 30 dias. Acolhedora, exclusividade, CTA suave. Emojis. Máximo 3 parágrafos. Apenas a mensagem.`,
-      agendamento: `Crie uma mensagem de WhatsApp de lembrete de agendamento para o salão "${nomeSalao}". Amigável, confirmar horário com [HORÁRIO] e [DATA], orientar cancelamento. Emojis. Máximo 3 linhas. Apenas a mensagem.`,
-      pacote: `Crie uma mensagem de WhatsApp do salão "${nomeSalao}" oferecendo pacote especial de "${servicoTop}" para cliente fiel. Exclusividade, valor percebido, urgência sutil. Emojis. Máximo 3 parágrafos. Apenas a mensagem.`,
-      aniversario: `Crie uma mensagem de WhatsApp de aniversário do salão "${nomeSalao}" para cliente. Calorosa, brinde especial no próximo atendimento. Emojis de bolo/flores. Máximo 2 parágrafos. Apenas a mensagem.`,
+    return () => {
+      active = false;
     };
-    const resultado = await supabaseApi.integrations.Core.InvokeLLM({
-      prompt: prompts[tipoMensagem],
+  }, [company_id, toast]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, chatLoading]);
+
+  const metrics = useMemo(
+    () => metricCards(dashboardData?.dashboard || {}),
+    [dashboardData],
+  );
+
+  const updateCampaign = (field, value) => {
+    setCampaign((current) => ({ ...current, [field]: value }));
+  };
+
+  const sendMessage = async (text = input) => {
+    const message = text.trim();
+    if (!message || !company_id || chatLoading) return;
+
+    setInput("");
+    setMessages((current) => [...current, { role: "user", content: message }]);
+    setChatLoading(true);
+
+    try {
+      const response = await aiGrowthApi.chat({
+        companyId: company_id,
+        message,
+        editorState: campaign,
+      });
+      const nextCampaign = { ...defaultCampaign, ...(response.campaign || {}) };
+      setCampaign(nextCampaign);
+      setLastToolResults(response.toolResults || null);
+      setMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          content: `${nextCampaign.title}\n\n${nextCampaign.reason}\n\nSugestao: ${nextCampaign.message}`,
+        },
+      ]);
+
+      if (response.fallback) {
+        toast({
+          title: "Modo fallback ativo",
+          description:
+            "O agente usou os dados do sistema, mas Gemini ainda nao respondeu ou nao esta configurado.",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Nao foi possivel acionar o agente",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const copyMessage = async () => {
+    await navigator.clipboard.writeText(campaign.message || "");
+    toast({ title: "Mensagem copiada!" });
+  };
+
+  const saveDraft = async () => {
+    if (!company_id || !campaign.message) return;
+
+    setSavingDraft(true);
+    try {
+      await aiGrowthApi.saveDraft({ companyId: company_id, campaign });
+      toast({ title: "Rascunho salvo!" });
+      const refreshed = await aiGrowthApi.dashboard(company_id);
+      setDashboardData(refreshed);
+    } catch (error) {
+      toast({
+        title: "Nao foi possivel salvar o rascunho",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  const prepareSend = () => {
+    toast({
+      title: "Envio preparado para revisao",
+      description:
+        "Conecte WhatsApp, Email, SMS ou Push para liberar disparos reais com confirmacao.",
     });
-    setMensagem(resultado);
-    setGerando(false);
   };
 
-  const copiar = () => {
-    navigator.clipboard.writeText(mensagem);
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 2000);
-  };
-
-  const opSelecionada = oportunidades.find((o) => o.id === tipoMensagem);
-
-  if (loadingUser || loading)
+  if (loadingCompany || loading) {
     return (
       <div className="p-6 flex items-center justify-center h-64">
         <div
@@ -142,150 +276,294 @@ export default function AppAI() {
         />
       </div>
     );
+  }
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-gradient-to-br from-rose-500 to-pink-600 rounded-xl flex items-center justify-center">
-          <Brain className="w-5 h-5 text-white" />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm"
+            style={{ backgroundColor: "var(--company-primary, #f43f5e)" }}
+          >
+            <Bot className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">AI Growth</h1>
+            <p className="text-slate-500 text-sm">
+              Agente de marketing e CRM baseado nos dados do sistema.
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            AI Growth Engine
-          </h1>
-          <p className="text-slate-500 text-sm">
-            Insights baseados nos seus dados reais
-          </p>
-        </div>
+        <Badge className="w-fit border-0 bg-emerald-50 text-emerald-700">
+          <Sparkles className="w-3.5 h-3.5 mr-1" />
+          Agente com tools
+        </Badge>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        <div className="lg:col-span-2 space-y-3">
-          <h2 className="text-sm font-semibold text-slate-700">
-            Ações recomendadas
-          </h2>
-          {oportunidades.map((op) => (
-            <div
-              key={op.id}
-              onClick={() => setTipoMensagem(op.id)}
-              className={`bg-white rounded-xl border-2 p-4 cursor-pointer transition-all ${tipoMensagem === op.id ? "border-rose-300 shadow-md" : "border-transparent hover:border-slate-200 shadow-sm"}`}
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-rose-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <op.icone className="w-4 h-4 text-rose-500" />
-                </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {metrics.map((item) => (
+          <Card key={item.label} className="border-0 shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-slate-900 leading-snug">
-                    {op.titulo}
+                  <p className={`text-2xl font-bold ${item.color}`}>
+                    {item.value}
                   </p>
-                  <p className="text-xs text-slate-500 mt-1 leading-snug">
-                    {op.descricao}
-                  </p>
+                  <p className="text-xs text-slate-500 mt-1">{item.label}</p>
+                </div>
+                <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+                  <item.icon className="w-4 h-4 text-slate-500" />
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-        <div className="lg:col-span-3">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        <div className="xl:col-span-3 space-y-4">
           <Card className="border-0 shadow-sm">
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-rose-500" />
-                Gerar mensagem para: {opSelecionada?.titulo}
+                <Wand2 className="w-4 h-4" />
+                Sugestoes inteligentes
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <Button
-                onClick={gerarMensagem}
-                disabled={gerando}
-                className="w-full bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white"
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                {gerando ? "Gerando com IA..." : "Gerar Mensagem com IA"}
-              </Button>
-              {gerando && (
-                <div className="bg-slate-50 rounded-xl p-4 flex items-center gap-3">
-                  <div className="w-5 h-5 border-2 border-rose-300 border-t-rose-500 rounded-full animate-spin flex-shrink-0" />
-                  <p className="text-sm text-slate-500">
-                    Analisando dados e gerando mensagem...
-                  </p>
+            <CardContent className="space-y-2">
+              {(dashboardData?.insights || []).map((insight) => (
+                <div
+                  key={insight}
+                  className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                >
+                  {insight}
                 </div>
-              )}
-              {mensagem && !gerando && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 relative">
-                  <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap pr-8">
-                    {mensagem}
-                  </p>
-                  <button
-                    onClick={copiar}
-                    className="absolute top-3 right-3 p-1.5 bg-white rounded-lg border hover:bg-slate-50 transition-colors"
-                  >
-                    {copiado ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-500" />
-                    ) : (
-                      <Copy className="w-3.5 h-3.5 text-slate-400" />
-                    )}
-                  </button>
-                  <div className="flex gap-2 mt-4">
-                    <Button
-                      size="sm"
-                      onClick={copiar}
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs"
-                    >
-                      <Send className="w-3 h-3 mr-1" /> Copiar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={gerarMensagem}
-                      className="text-xs"
-                    >
-                      Regerar
-                    </Button>
-                  </div>
-                </div>
-              )}
-              {!mensagem && !gerando && (
-                <div className="bg-slate-50 rounded-xl p-8 text-center text-slate-400 text-sm">
-                  <Brain className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                  <p>
-                    Clique em "Gerar Mensagem" para criar uma mensagem
-                    personalizada com IA.
-                  </p>
-                </div>
-              )}
+              ))}
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-3 gap-3 mt-4">
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4 text-center">
-                <p className="text-2xl font-bold text-slate-900">
-                  {clientes.length}
-                </p>
-                <p className="text-xs text-slate-500">Total Clientes</p>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4 text-center">
-                <p className="text-2xl font-bold text-red-500">
-                  {clientesInativos.length}
-                </p>
-                <p className="text-xs text-slate-500">Inativos 30d</p>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4 text-center">
-                <p className="text-2xl font-bold text-emerald-500">
-                  {agendamentos.filter((a) => a.status === "concluido").length}
-                </p>
-                <p className="text-xs text-slate-500">Concluídos</p>
-              </CardContent>
-            </Card>
-          </div>
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Atalhos do agente</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {quickPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => sendMessage(prompt)}
+                  disabled={chatLoading}
+                  className="w-full rounded-lg border border-slate-100 px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </CardContent>
+          </Card>
         </div>
+
+        <Card className="xl:col-span-5 border-0 shadow-sm overflow-hidden">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              Agente IA
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="h-[520px] flex flex-col">
+              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+                {messages.map((message, index) => (
+                  <ChatBubble key={`${message.role}-${index}`} message={message} />
+                ))}
+                {chatLoading && (
+                  <div className="flex justify-start">
+                    <div className="rounded-2xl rounded-bl-md bg-slate-100 px-4 py-3 text-sm text-slate-500">
+                      Analisando dados, selecionando ferramentas e criando campanha...
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+              <div className="border-t bg-white p-3">
+                <div className="flex gap-2">
+                  <Input
+                    value={input}
+                    onChange={(event) => setInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        sendMessage();
+                      }
+                    }}
+                    placeholder="Digite seu objetivo: quero aumentar agendamentos..."
+                    disabled={chatLoading}
+                  />
+                  <Button
+                    onClick={() => sendMessage()}
+                    disabled={chatLoading || !input.trim()}
+                    style={{ backgroundColor: "var(--company-primary, #f43f5e)" }}
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="xl:col-span-4 border-0 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <PencilLine className="w-4 h-4" />
+              Editor de campanha
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Field label="Titulo">
+              <Input
+                value={campaign.title}
+                onChange={(event) => updateCampaign("title", event.target.value)}
+                placeholder="Campanha de reativacao"
+              />
+            </Field>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Tom">
+                <select
+                  value={campaign.tone}
+                  onChange={(event) => updateCampaign("tone", event.target.value)}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="formal">Formal</option>
+                  <option value="casual">Casual</option>
+                  <option value="engracado">Engracado</option>
+                  <option value="elegante">Elegante</option>
+                  <option value="persuasivo">Persuasivo</option>
+                </select>
+              </Field>
+              <Field label="Canal">
+                <select
+                  value={campaign.channel}
+                  onChange={(event) =>
+                    updateCampaign("channel", event.target.value)
+                  }
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="email">E-mail</option>
+                  <option value="sms">SMS</option>
+                  <option value="push">Push</option>
+                  <option value="multi_channel">Multi canal</option>
+                </select>
+              </Field>
+            </div>
+
+            <Field label="Publico">
+              <Input
+                value={campaign.targetAudience}
+                onChange={(event) =>
+                  updateCampaign("targetAudience", event.target.value)
+                }
+                placeholder="Clientes sem retorno ha 60 dias"
+              />
+            </Field>
+
+            <Field label="Mensagem">
+              <Textarea
+                value={campaign.message}
+                onChange={(event) => updateCampaign("message", event.target.value)}
+                placeholder="A campanha gerada pelo agente aparecera aqui."
+                className="min-h-44 resize-none"
+              />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-lg bg-slate-50 p-3">
+                <p className="text-xs text-slate-400">Quantidade sugerida</p>
+                <p className="font-bold text-slate-900">
+                  {campaign.audienceSize || 0}
+                </p>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-3">
+                <p className="text-xs text-slate-400">Confianca</p>
+                <p className="font-bold text-slate-900">
+                  {Math.round((campaign.confidence || 0) * 100)}%
+                </p>
+              </div>
+            </div>
+
+            {campaign.reason && (
+              <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-sm text-slate-600">
+                <strong className="text-slate-800">Motivo: </strong>
+                {campaign.reason}
+              </div>
+            )}
+
+            {campaign.warnings?.length > 0 && (
+              <div className="space-y-2">
+                {campaign.warnings.map((warning) => (
+                  <div
+                    key={warning}
+                    className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800"
+                  >
+                    {warning}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={copyMessage}
+                disabled={!campaign.message}
+                className="flex-1"
+              >
+                <Copy className="w-4 h-4" />
+                Copiar
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={saveDraft}
+                disabled={!campaign.message || savingDraft}
+                className="flex-1"
+              >
+                <PencilLine className="w-4 h-4" />
+                {savingDraft ? "Salvando..." : "Salvar"}
+              </Button>
+              <Button
+                type="button"
+                onClick={prepareSend}
+                disabled={!campaign.message}
+                className="flex-1"
+                style={{ backgroundColor: "var(--company-primary, #f43f5e)" }}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                Revisar envio
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {lastToolResults && (
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Ferramentas usadas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {Object.keys(lastToolResults).map((tool) => (
+                <Badge key={tool} className="border-0 bg-slate-100 text-slate-700">
+                  {tool}
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 
 const ENTITY_TABLES = [
   "Agendamento",
+  "Campanha",
   "AppConfig",
   "Cliente",
   "ListaEspera",

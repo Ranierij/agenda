@@ -9,6 +9,7 @@ import {
   Plus,
   Minus,
 } from "lucide-react";
+import { buildAppointmentLayout } from "@/lib/appointmentConflict";
 
 const STATUS_STYLE = {
   agendado: { bg: "#dbeafe", border: "#3b82f6", text: "#1e40af" },
@@ -287,9 +288,41 @@ export default function AgendaColunas({
     });
   };
 
+  const handleEventClick = (event, ag, col) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const offsetY = event.clientY - rect.top;
+
+    if (offsetY <= 24) {
+      onEdit(ag);
+      return;
+    }
+
+    const startMin = timeToMinutes(ag.hora);
+    const rawClickedMin = startMin + Math.floor(offsetY / pxPerMin);
+    const clickedMin = Math.floor(rawClickedMin / 15) * 15;
+    const eventEndMin = startMin + (ag.duracao_minutos || 60);
+    const targetMin = Math.min(Math.max(clickedMin, startMin), eventEndMin - 15);
+
+    if (isPastEmptySlot(col.date, targetMin)) return;
+
+    const hora = `${String(Math.floor(targetMin / 60)).padStart(2, "0")}:${String(targetMin % 60).padStart(2, "0")}`;
+    const prof = colunasBase.find((c) => c.id === col.id);
+
+    onEdit({
+      _novo: true,
+      hora,
+      profissional_id:
+        viewMode === "day" && col.id !== "__sem_prof__"
+          ? col.id
+          : ag.profissional_id || "",
+      profissional_nome: prof?.nome || ag.profissional_nome || "",
+      data: col.date,
+    });
+  };
+
   const changeInterval = (delta) => {
     setIntervalMin((prev) => {
-      const next = prev + delta * 30;
+      const next = prev + delta * 15;
       return Math.min(120, Math.max(15, next));
     });
   };
@@ -621,13 +654,23 @@ export default function AgendaColunas({
                   ))}
 
                   {/* Cards de agendamento */}
-                  {col.ags.map((ag) => {
+                  {(() => {
+                    const appointmentLayout = buildAppointmentLayout(col.ags);
+
+                    return col.ags.map((ag, index) => {
                     const startMin = timeToMinutes(ag.hora);
                     const dur = ag.duracao_minutos || 60;
                     const top = (startMin - GRID_START_MIN) * pxPerMin;
                     const height = Math.max(dur * pxPerMin, MIN_EVENT_HEIGHT);
                     const style =
                       STATUS_STYLE[ag.status] || STATUS_STYLE.agendado;
+                    const laneInfo = appointmentLayout.get(ag.id || index) || {
+                      lane: 0,
+                      laneCount: 1,
+                    };
+                    const gap = 3;
+                    const laneWidth = 100 / laneInfo.laneCount;
+                    const laneLeft = laneWidth * laneInfo.lane;
 
                     return (
                       <div
@@ -635,15 +678,18 @@ export default function AgendaColunas({
                         className="absolute rounded-md overflow-hidden cursor-pointer group transition-all hover:brightness-95 hover:shadow-md select-none"
                         style={{
                           top: top + 1,
-                          left: 3,
-                          right: 3,
+                          left: `calc(${laneLeft}% + ${gap}px)`,
+                          width: `calc(${laneWidth}% - ${gap * 2}px)`,
                           height: height - 2,
                           backgroundColor: style.bg,
+                          backgroundImage:
+                            "linear-gradient(to bottom, rgba(255,255,255,0.45) 1px, transparent 1px)",
+                          backgroundSize: `100% ${15 * pxPerMin}px`,
                           border: `1px solid ${style.border}`,
                           borderLeft: `3px solid ${style.border}`,
                           zIndex: 2,
                         }}
-                        onClick={() => onEdit(ag)}
+                        onClick={(event) => handleEventClick(event, ag, col)}
                       >
                         <div className="px-2 py-1 h-full flex flex-col overflow-hidden gap-0.5">
                           {/* Linha hora */}
@@ -721,7 +767,8 @@ export default function AgendaColunas({
                         </div>
                       </div>
                     );
-                  })}
+                    });
+                  })()}
                 </div>
               </div>
             ))}
